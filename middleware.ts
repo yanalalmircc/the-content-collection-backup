@@ -24,12 +24,16 @@ export async function middleware(req: NextRequest) {
 
   // Create a response object
   const response = NextResponse.next();
+
+  // Check if UUID already exists in cookies
+  const existingUuid = req.cookies.get("uuid");
+  const uuid = existingUuid?.value || uuidv4();
+
   // Collect data
   const ipAddress = (req.headers.get("x-forwarded-for") ?? "127.0.0.1").split(
     ","
   )[0];
   const userAgent = req.headers.get("user-agent") || "";
-  const uuid = uuidv4();
 
   // Store tracking parameters in cookies
   Object.entries(trackingParams).forEach(([key, value]) => {
@@ -37,23 +41,29 @@ export async function middleware(req: NextRequest) {
       response.cookies.set(key, value, { path: "/", httpOnly: true });
     }
   });
+
+  // Only set UUID if it doesn't exist or has expired
+  if (!existingUuid) {
+    response.cookies.set("uuid", uuid, {
+      path: "/",
+      httpOnly: true,
+      secure: true,
+      maxAge: 2592000, // 30 days instead of 1 hour
+    });
+  }
+
   response.cookies.set("ipAddress", ipAddress, {
     path: "/",
     httpOnly: true,
     secure: true,
-    maxAge: 3600, // 1 hour
+    maxAge: 3600,
   });
+
   response.cookies.set("userAgent", userAgent, {
     path: "/",
     httpOnly: true,
     secure: true,
-    maxAge: 3600, // 1 hour
-  });
-  response.cookies.set("uuid", uuid, {
-    path: "/",
-    httpOnly: true,
-    secure: true,
-    maxAge: 3600, // 1 hour
+    maxAge: 3600,
   });
 
   return response;
