@@ -64,7 +64,7 @@ export async function middleware(req: NextRequest) {
     path: "/",
     httpOnly: true,
     secure: true,
-    maxAge: 2592000, // 30 days
+    maxAge: 3600,
   });
 
   // Also set a separate UUID cookie for backward compatibility
@@ -72,7 +72,7 @@ export async function middleware(req: NextRequest) {
     path: "/",
     httpOnly: true,
     secure: true,
-    maxAge: 2592000, // 30 days
+    maxAge: 3600,
   });
 
   return response;
