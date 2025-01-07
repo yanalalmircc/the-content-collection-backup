@@ -1,34 +1,24 @@
 "use server";
 import axios from "axios";
-import { VisitPayload, TrackingParams } from "@/app/lib/types";
+import { VisitPayload } from "@/app/lib/types";
 import { cookies } from "next/headers";
 
 export const registerVisit = async () => {
   try {
     const cookieStore = cookies();
-    const trackingParamsFromCookies: TrackingParams = {
-      utm_source: cookieStore.get("utm_source")?.value || "",
-      utm_medium: cookieStore.get("utm_medium")?.value || "",
-      utm_campaign: cookieStore.get("utm_campaign")?.value || "",
-      utm_source_platform: cookieStore.get("utm_source_platform")?.value || "",
-      utm_term: cookieStore.get("utm_term")?.value || "",
-      utm_content: cookieStore.get("utm_content")?.value || "",
-      gclid: cookieStore.get("gclid")?.value || "",
-      keywordid: cookieStore.get("keywordid")?.value || "",
-      placementid: cookieStore.get("placementid")?.value || "",
-      networkid: cookieStore.get("networkid")?.value || "",
-      publisher: cookieStore.get("publisher")?.value || "",
-      preview: cookieStore.get("preview")?.value || "",
-    };
+    const visitorCookie = cookieStore.get("visitor");
+    const visitorData = visitorCookie ? JSON.parse(visitorCookie.value) : {};
+
     const payload: VisitPayload = {
       landingId: Number(process.env.NEXT_PUBLIC_LANDING_ID),
-      uuid: cookieStore.get("uuid")?.value,
+      uuid: visitorData.uuid,
       url: "https://thecontentcollection.com",
-      ip: cookieStore.get("ipAddress")?.value,
-      userAgent: cookieStore.get("userAgent")?.value,
+      ip: visitorData.ipAddress,
+      userAgent: visitorData.userAgent,
     };
+
     const requestPayload = {
-      ...trackingParamsFromCookies,
+      ...visitorData,
       ...payload,
     };
 
@@ -38,10 +28,15 @@ export const registerVisit = async () => {
     );
 
     // Add tracking parameters to URL if they exist
-    if (trackingParamsFromCookies) {
-      Object.entries(trackingParamsFromCookies).forEach(([key, value]) => {
-        if (value) {
-          url.searchParams.append(key, value);
+    if (visitorData) {
+      Object.entries(visitorData).forEach(([key, value]) => {
+        if (
+          value &&
+          key !== "uuid" &&
+          key !== "ipAddress" &&
+          key !== "userAgent"
+        ) {
+          url.searchParams.append(key, value as string);
         }
       });
     }

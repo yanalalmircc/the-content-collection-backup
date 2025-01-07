@@ -25,9 +25,25 @@ export async function middleware(req: NextRequest) {
   // Create a response object
   const response = NextResponse.next();
 
-  // Check if UUID already exists in cookies
-  const existingUuid = req.cookies.get("uuid");
-  const uuid = existingUuid?.value || uuidv4();
+  // Check for existing visitor data or UUID
+  const existingVisitorCookie = req.cookies.get("visitor");
+  const existingUuidCookie = req.cookies.get("uuid");
+
+  let uuid;
+
+  if (existingVisitorCookie) {
+    // Try to get UUID from visitor cookie
+    const visitorData = JSON.parse(existingVisitorCookie.value);
+    uuid = visitorData.uuid;
+  } else if (existingUuidCookie) {
+    // If no visitor cookie but UUID exists, use that
+    uuid = existingUuidCookie.value;
+  }
+
+  // If no UUID found anywhere, generate a new one
+  if (!uuid) {
+    uuid = uuidv4();
+  }
 
   // Collect data
   const ipAddress = (req.headers.get("x-forwarded-for") ?? "127.0.0.1").split(
@@ -35,35 +51,28 @@ export async function middleware(req: NextRequest) {
   )[0];
   const userAgent = req.headers.get("user-agent") || "";
 
-  // Store tracking parameters in cookies
-  Object.entries(trackingParams).forEach(([key, value]) => {
-    if (value) {
-      response.cookies.set(key, value, { path: "/", httpOnly: true });
-    }
-  });
+  // Create visitor data object
+  const visitorData = {
+    uuid, // Ensure UUID is included
+    ipAddress,
+    userAgent,
+    ...trackingParams,
+  };
 
-  // Only set UUID if it doesn't exist or has expired
-  if (!existingUuid) {
-    response.cookies.set("uuid", uuid, {
-      path: "/",
-      httpOnly: true,
-      secure: true,
-      maxAge: 2592000, // 30 days instead of 1 hour
-    });
-  }
-
-  response.cookies.set("ipAddress", ipAddress, {
+  // Set visitor cookie
+  response.cookies.set("visitor", JSON.stringify(visitorData), {
     path: "/",
     httpOnly: true,
     secure: true,
-    maxAge: 3600,
+    maxAge: 2592000, // 30 days
   });
 
-  response.cookies.set("userAgent", userAgent, {
+  // Also set a separate UUID cookie for backward compatibility
+  response.cookies.set("uuid", uuid, {
     path: "/",
     httpOnly: true,
     secure: true,
-    maxAge: 3600,
+    maxAge: 2592000, // 30 days
   });
 
   return response;
